@@ -220,28 +220,36 @@ function limitPan() {
 
 // Load Star and Constellation Data
 function loadData() {
-  fetch('starry_data.json?v=' + Date.now())
-    .then(response => response.json())
-    .then(data => {
-      state.stars = data.stars.filter(s => !isNaN(s.ra) && !isNaN(s.dec));
-      state.constellations = data.constellations;
-      
-      state.constellations.forEach(c => {
-        state.constellationMap[c.name.toLowerCase()] = c;
-        state.constellationMap[c.name_ko.toLowerCase()] = c;
-        c.abbrev = getAbbrevFromFullName(c.name);
-        if (c.abbrev) {
-          state.constellationMap[c.abbrev.toLowerCase()] = c;
-        }
+  if (window.STARRY_DATA) {
+    initLoadedData(window.STARRY_DATA);
+  } else {
+    fetch('starry_data.json?v=' + Date.now())
+      .then(response => response.json())
+      .then(data => {
+        initLoadedData(data);
+      })
+      .catch(err => {
+        console.error("Error loading starry_data.json:", err);
+        alert("데이터 파일을 로드하는 데 실패했습니다. process_assets.py 스크립트가 실행되었는지 확인해 주세요.");
       });
-      
-      preloadConstellationImages();
-      console.log(`Loaded ${state.stars.length} stars and ${state.constellations.length} constellations.`);
-    })
-    .catch(err => {
-      console.error("Error loading starry_data.json:", err);
-      alert("데이터 파일을 로드하는 데 실패했습니다. process_assets.py 스크립트가 실행되었는지 확인해 주세요.");
-    });
+  }
+}
+
+function initLoadedData(data) {
+  state.stars = data.stars.filter(s => !isNaN(s.ra) && !isNaN(s.dec));
+  state.constellations = data.constellations;
+  
+  state.constellations.forEach(c => {
+    state.constellationMap[c.name.toLowerCase()] = c;
+    state.constellationMap[c.name_ko.toLowerCase()] = c;
+    c.abbrev = getAbbrevFromFullName(c.name);
+    if (c.abbrev) {
+      state.constellationMap[c.abbrev.toLowerCase()] = c;
+    }
+  });
+  
+  preloadConstellationImages();
+  console.log(`Loaded ${state.stars.length} stars and ${state.constellations.length} constellations.`);
 }
 
 function getAbbrevFromFullName(fullname) {
@@ -542,7 +550,11 @@ function saveCalibrationDataToServer() {
   tryCreateIcons();
   elements.btnSaveCalibration.disabled = true;
   
-  fetch('/api/save_calibration', {
+  const apiEndpoint = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+    ? (window.location.port === '8000' ? '/api/save_calibration' : 'http://127.0.0.1:8000/api/save_calibration')
+    : '/api/save_calibration';
+
+  fetch(apiEndpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -559,7 +571,7 @@ function saveCalibrationDataToServer() {
   })
   .catch(err => {
     console.error("Save failed:", err);
-    alert("서버 연결에 실패했습니다. 커스텀 Python 서버(server.py)가 실행 중인지 확인해 주세요.");
+    alert("서버 연결에 실패했습니다. 만약 Streamlit Cloud 같은 클라우드 배포 환경에서 실행 중이시라면, 화면 우측 패널의 '성도 보정 도구'를 사용해 슬라이더 조작 후 저장해 주세요.");
   })
   .finally(() => {
     elements.btnSaveCalibration.innerHTML = originalHTML;

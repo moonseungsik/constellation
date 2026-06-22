@@ -18,6 +18,33 @@ JSON_PATH = os.path.join(PROJECT_DIR, "starry_data.json")
 APP_JS_PATH = os.path.join(PROJECT_DIR, "app.js")
 PORT = 8000
 
+# -----------------------------------------------------------------------------
+# 1.1 STATIC FILES AUTO-SYNC (For local/cloud deployment static serving)
+# -----------------------------------------------------------------------------
+import shutil
+STATIC_DIR = os.path.join(PROJECT_DIR, "static")
+os.makedirs(STATIC_DIR, exist_ok=True)
+
+# Copy config/web files
+for f_name in ["index.html", "style.css", "app.js", "starry_data.json"]:
+    src = os.path.join(PROJECT_DIR, f_name)
+    dst = os.path.join(STATIC_DIR, f_name)
+    if os.path.exists(src):
+        if not os.path.exists(dst) or os.path.getmtime(src) > os.path.getmtime(dst):
+            shutil.copy2(src, dst)
+
+# Copy image assets
+images_src = os.path.join(PROJECT_DIR, "images")
+images_dst = os.path.join(STATIC_DIR, "images")
+if os.path.exists(images_src):
+    os.makedirs(images_dst, exist_ok=True)
+    for img_name in os.listdir(images_src):
+        if img_name.endswith(".png"):
+            s_path = os.path.join(images_src, img_name)
+            d_path = os.path.join(images_dst, img_name)
+            if not os.path.exists(d_path) or os.path.getmtime(s_path) > os.path.getmtime(d_path):
+                shutil.copy2(s_path, d_path)
+
 # Simple dynamic HTTP server for API requests and serving static assets
 class DynPlanetariumRequestHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -99,6 +126,10 @@ def is_port_in_use(port: int) -> bool:
         return s.connect_ex(('127.0.0.1', port)) == 0
 
 def start_server_daemon():
+    # If running in Streamlit Cloud, skip starting the background HTTP server thread
+    if os.path.exists("/mount"):
+        return "Skipped (Cloud Environment)"
+
     def run_server():
         try:
             server = HTTPServer(('127.0.0.1', PORT), DynPlanetariumRequestHandler)
@@ -274,8 +305,15 @@ def save_calibrations_to_json(name, ra, dec, width, height, pa, flip_h, flip_v):
                 break
                 
         if found:
+            # Write to root starry_data.json
             with open(JSON_PATH, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
+            
+            # Write to static/starry_data.json for instant sync
+            static_json_path = os.path.join(STATIC_DIR, "starry_data.json")
+            with open(static_json_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+                
             st.cache_data.clear() # Clear cache on update
             return True
         return False
@@ -335,9 +373,12 @@ with st.sidebar:
     st.markdown('<h2 style="color: #60a5fa; margin-top: 0;">🛰️ 관측 제어 센터</h2>', unsafe_allow_html=True)
     
     # Server status
+    is_cloud = os.path.exists("/mount")
+    status_text = "로컬 백그라운드" if not is_cloud else "Streamlit 클라우드"
+    
     st.markdown(
-        f'<div>API 서버 상태: <span class="status-badge-online">🟢 Online</span></div>'
-        f'<div style="font-size: 11px; color:#6b7280; margin-top:4px; margin-bottom: 16px;">{server_status}</div>',
+        f'<div>서버 환경: <span class="status-badge-online">🟢 {status_text}</span></div>'
+        f'<div style="font-size: 11px; color:#6b7280; margin-top:4px; margin-bottom: 16px;">정적 성도 파일 서빙 (/app/static/)</div>',
         unsafe_allow_html=True
     )
     
@@ -386,9 +427,9 @@ col_map, col_controls = st.columns([13, 7])
 # 좌측 컬럼: 대화형 성도 뷰어
 with col_map:
     st.markdown("### 🖥️ 실시간 대화형 성도 (3D Dome Simulator)")
-    # Embed HTML Canvas App with reload query buster
-    iframe_src = f"http://127.0.0.1:{PORT}/?v={st.session_state.reload_count}"
-    st.iframe(iframe_src, height=800, scrolling=False)
+    # Embed HTML Canvas App with reload query buster (loads from the static files endpoint)
+    iframe_src = f"/app/static/index.html?v={st.session_state.reload_count}"
+    st.components.v1.iframe(iframe_src, height=800, scrolling=False)
     st.markdown(
         "<div style='font-size:12px; color:#6b7280; text-align:center; margin-top:-10px;'>"
         "※ 성도 내부에서 설정 아이콘을 눌러 별자리 일러스트, 별 이름, 행성 및 DSO 오버레이를 켜고 끌 수 있습니다.</div>",
