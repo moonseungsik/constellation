@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Starry Night Custom - 나만의 천체 관측소</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Fullscreen Canvas Container -->
+  <div id="canvas-container">
+    <canvas id="sky-canvas"></canvas>
+  </div>
+
+  <!-- HUD: Top Bar Info -->
+  <div id="hud-top" class="hud-panel">
+    <!-- Clickable Location Info Trigger -->
+    <div id="hud-location-trigger" class="hud-item location-info clickable-hud">
+      <i data-lucide="map-pin" class="icon-glow"></i>
+      <div>
+        <span id="txt-location-name" class="hud-val">GPS 관측지 (서울)</span>
+        <span id="txt-coordinates" class="hud-sub">37.56° N, 126.98° E</span>
+      </div>
+      <i data-lucide="chevron-down" class="chevron-indicator"></i>
+    </div>
+
+    <!-- Clickable Time Info Trigger -->
+    <div id="hud-time-trigger" class="hud-item time-info clickable-hud">
+      <i data-lucide="clock" class="icon-glow"></i>
+      <div>
+        <span id="txt-current-time" class="hud-val">2026-06-22 08:53:00</span>
+        <span id="txt-time-speed" class="hud-sub">실시간 (1x)</span>
+      </div>
+      <i data-lucide="chevron-down" class="chevron-indicator"></i>
+    </div>
+
+    <!-- Location Dropdown Card -->
+    <div id="hud-location-dropdown" class="hud-dropdown location-dropdown glass-panel hidden">
+      <div class="select-group">
+        <label for="select-observatory" class="select-label" style="font-weight: 600; color: var(--color-primary);">어린이천문대 지점 선택</label>
+        <select id="select-observatory" class="custom-select">
+          <option value="">지점 선택 안 함 (수동 입력/GPS)</option>
+          <option value="ilsan">일산본사 ( HQ )</option>
+          <option value="bundang">분당 지점</option>
+          <option value="songpa">송파하남 지점</option>
+          <option value="pangyo">판교 지점</option>
+          <option value="dongtan">동탄 지점</option>
+          <option value="bucheon">부천 지점</option>
+          <option value="gwanggyo">광교 지점</option>
+          <option value="ansan">안산 지점</option>
+          <option value="anyang">안양 지점</option>
+          <option value="uiwang">의왕 지점</option>
+          <option value="incheon">인천 지점</option>
+          <option value="paju">파주 지점</option>
+          <option value="sejong">세종 지점</option>
+          <option value="daejeon">대전 지점</option>
+          <option value="daegu">대구 지점</option>
+          <option value="ulsan">울산 지점</option>
+          <option value="gwangju">광주 지점</option>
+          <option value="guri">구리 지점</option>
+          <option value="dongseoul">동서울 지점</option>
+          <option value="seoseoul">서서울 지점</option>
+          <option value="suji">수지 지점</option>
+          <option value="cheonan">천안 지점</option>
+          <option value="byeollae">별내 지점</option>
+          <option value="yongin">용인 지점</option>
+          <option value="pyeongtaek">평택 지점</option>
+          <option value="hongcheon">홍천 관측소 (오픈예정)</option>
+        </select>
+      </div>
+      <div class="location-quick" style="margin-top: 12px;">
+        <button class="btn-city" data-lat="37.56" data-lon="126.98" data-name="서울">서울</button>
+        <button class="btn-city" data-lat="35.17" data-lon="129.07" data-name="부산">부산</button>
+        <button class="btn-city" data-lat="40.71" data-lon="-74.00" data-name="뉴욕">뉴욕</button>
+        <button class="btn-city" data-lat="51.50" data-lon="-0.12" data-name="런던">런던</button>
+        <button id="btn-gps" class="btn-gps-sync"><i data-lucide="navigation"></i> GPS 현위치</button>
+      </div>
+      <div class="slider-group" style="margin-top: 12px;">
+        <label for="slider-lat">위도 (Latitude): <span id="val-lat">37.56° N</span></label>
+        <input type="range" id="slider-lat" min="-90" max="90" step="0.1" value="37.6">
+      </div>
+      <div class="slider-group">
+        <label for="slider-lon">경도 (Longitude): <span id="val-lon">126.98° E</span></label>
+        <input type="range" id="slider-lon" min="-180" max="180" step="0.1" value="127.0">
+      </div>
+    </div>
+
+    <!-- Time Dropdown Card -->
+    <div id="hud-time-dropdown" class="hud-dropdown time-dropdown glass-panel hidden">
+      <div class="time-controls">
+        <button id="btn-time-rewind" title="역배속"><i data-lucide="rewind"></i></button>
+        <button id="btn-time-play-pause" title="일시정지/재생"><i data-lucide="pause"></i></button>
+        <button id="btn-time-forward" title="정배속"><i data-lucide="fast-forward"></i></button>
+        <button id="btn-time-now" title="현재 시간으로 리셋"><i data-lucide="rotate-ccw"></i></button>
+      </div>
+      <div class="speed-presets">
+        <button class="btn-speed" data-speed="1">실시간</button>
+        <button class="btn-speed" data-speed="60">1분/초</button>
+        <button class="btn-speed" data-speed="3600">1시간/초</button>
+        <button class="btn-speed" data-speed="86400">1일/초</button>
+      </div>
+
+      <div class="datetime-picker-group">
+        <label class="select-label" style="margin-bottom: 4px; display: block; font-size: 0.8rem; font-weight: 600; color: var(--color-primary);"><i data-lucide="edit-3"></i> 수동 일시 조정 (연/월/일/시/분/초)</label>
+        
+        <div class="datetime-spinner-container">
+          <div class="spinner-column">
+            <button class="btn-spin" data-action="up" data-unit="year"><i data-lucide="chevron-up"></i></button>
+            <span id="spin-year" class="spin-val">2026</span>
+            <button class="btn-spin" data-action="down" data-unit="year"><i data-lucide="chevron-down"></i></button>
+            <span class="spinner-unit">년</span>
+          </div>
+          <div class="spinner-column">
+            <button class="btn-spin" data-action="up" data-unit="month"><i data-lucide="chevron-up"></i></button>
+            <span id="spin-month" class="spin-val">06</span>
+            <button class="btn-spin" data-action="down" data-unit="month"><i data-lucide="chevron-down"></i></button>
+            <span class="spinner-unit">월</span>
+          </div>
+          <div class="spinner-column">
+            <button class="btn-spin" data-action="up" data-unit="day"><i data-lucide="chevron-up"></i></button>
+            <span id="spin-day" class="spin-val">22</span>
+            <button class="btn-spin" data-action="down" data-unit="day"><i data-lucide="chevron-down"></i></button>
+            <span class="spinner-unit">일</span>
+          </div>
+          <div class="spinner-separator">|</div>
+          <div class="spinner-column">
+            <button class="btn-spin" data-action="up" data-unit="hour"><i data-lucide="chevron-up"></i></button>
+            <span id="spin-hour" class="spin-val">09</span>
+            <button class="btn-spin" data-action="down" data-unit="hour"><i data-lucide="chevron-down"></i></button>
+            <span class="spinner-unit">시</span>
+          </div>
+          <div class="spinner-column">
+            <button class="btn-spin" data-action="up" data-unit="minute"><i data-lucide="chevron-up"></i></button>
+            <span id="spin-minute" class="spin-val">40</span>
+            <button class="btn-spin" data-action="down" data-unit="minute"><i data-lucide="chevron-down"></i></button>
+            <span class="spinner-unit">분</span>
+          </div>
+          <div class="spinner-column">
+            <button class="btn-spin" data-action="up" data-unit="second"><i data-lucide="chevron-up"></i></button>
+            <span id="spin-second" class="spin-val">27</span>
+            <button class="btn-spin" data-action="down" data-unit="second"><i data-lucide="chevron-down"></i></button>
+            <span class="spinner-unit">초</span>
+          </div>
+        </div>
+
+        <input type="datetime-local" id="input-obs-datetime" class="custom-datetime-input" step="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Settings Button (User's mobile gear icon suggestion) -->
+  <button id="btn-toggle-menu" class="floating-btn" aria-label="설정 메뉴 열기">
+    <i data-lucide="settings" class="menu-icon"></i>
+  </button>
+
+  <!-- Bottom Drawer Menu (Mobile Bottom Sheet / Desktop Sidebar Panel) -->
+  <div id="menu-overlay" class="menu-hidden">
+    <div id="menu-container" class="glass-panel">
+      <!-- Drag handle for mobile swipe-down-to-close feel -->
+      <div class="drag-handle"></div>
+
+      <div class="menu-header">
+        <h2>천체 관측 설정</h2>
+        <button id="btn-close-menu" class="close-btn" aria-label="설정 메뉴 닫기">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="menu-body">
+        <!-- Section 1: Search -->
+        <div class="menu-section">
+          <h3><i data-lucide="search"></i> 별자리 및 천체 검색</h3>
+          <div class="search-box">
+            <input type="text" id="search-input" placeholder="한글, 영문 또는 3글자 약자 입력 (예: 오리온, Ori)">
+            <button id="btn-clear-search" class="clear-btn"><i data-lucide="x-circle"></i></button>
+          </div>
+          <div id="search-results" class="results-list hidden"></div>
+        </div>
+
+        <!-- Section 2: Constellation Settings -->
+        <div class="menu-section">
+          <h3><i data-lucide="sparkles"></i> 별자리 및 하늘 설정</h3>
+          <div class="slider-group">
+            <label for="slider-opacity">일러스트 투명도: <span id="val-opacity">50%</span></label>
+            <input type="range" id="slider-opacity" min="0" max="100" value="50">
+          </div>
+          <div class="toggle-grid">
+            <label class="toggle-switch">
+              <input type="checkbox" id="chk-show-lines">
+              <span class="slider"></span>
+              <span class="label-text">별자리선 표시</span>
+            </label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="chk-show-illustrations">
+              <span class="slider"></span>
+              <span class="label-text">커스텀 일러스트 표시</span>
+            </label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="chk-show-names">
+              <span class="slider"></span>
+              <span class="label-text">별자리 이름 표시</span>
+            </label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="chk-show-star-names">
+              <span class="slider"></span>
+              <span class="label-text">주요 별 이름 표시</span>
+            </label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="chk-show-planets">
+              <span class="slider"></span>
+              <span class="label-text">태양계 행성 표시</span>
+            </label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="chk-show-dsos">
+              <span class="slider"></span>
+              <span class="label-text">성운/성단/은하(DSO) 표시</span>
+            </label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="chk-show-horizon" checked>
+              <span class="slider"></span>
+              <span class="label-text">지평선 표시 (땅 가림)</span>
+            </label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="chk-show-atmosphere" checked>
+              <span class="slider"></span>
+              <span class="label-text">대기/태양빛 효과 (낮 하늘)</span>
+            </label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="chk-calibration-mode">
+              <span class="slider"></span>
+              <span class="label-text" style="color: #fb923c; font-weight: 500;">일러스트 위치 보정 모드</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calibration Info Bar (Appears when calibration mode is active) -->
+  <div id="calibration-bar" class="hud-panel cal-panel hidden">
+    <div class="cal-info">
+      <div class="cal-title"><i data-lucide="edit-3"></i> 보정 모드: <span id="cal-const-name" class="color-highlight">-</span></div>
+      <div id="cal-coords-val" class="cal-vals">RA: - Dec: - Size: - PA: -</div>
+      <div class="cal-help">이동: 방향키 | 회전: [ , ] | 크기: + , - | 배속이동: Shift+방향키</div>
+    </div>
+    <button id="btn-copy-calibration" class="btn-cal-action"><i data-lucide="copy"></i> 복사</button>
+    <button id="btn-flip-h" class="btn-cal-action" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.2); color: #cbd5e1; margin-left: 4px;"><i data-lucide="flip-horizontal"></i> 좌우반전 (H)</button>
+    <button id="btn-flip-v" class="btn-cal-action" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.2); color: #cbd5e1; margin-left: 4px;"><i data-lucide="flip-vertical"></i> 상하반전 (V)</button>
+    <button id="btn-rotate-90" class="btn-cal-action" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.2); color: #cbd5e1; margin-left: 4px;"><i data-lucide="rotate-cw"></i> 90도 회전 (R)</button>
+    <button id="btn-save-calibration" class="btn-cal-action" style="background: rgba(251, 146, 60, 0.25); font-weight: 600; margin-left: 4px;"><i data-lucide="save"></i> 즉시 저장</button>
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="app.js"></script>
+</body>
+</html>
